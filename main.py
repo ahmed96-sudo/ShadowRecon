@@ -714,24 +714,24 @@ def main():
     wayback_file = wayback_urls(domain, out_file="wayback.txt")
 
     # 3) Fuzz dirs on live
-    fuzz_dirs_ffuf(live_file, args.wordlist, out_dir="ffuf_dirs")
+    # fuzz_dirs_ffuf(live_file, args.wordlist, out_dir="ffuf_dirs")
 
     # 4) Nuclei takeover
-    nuclei_takeover(live_file, templates_dir=os.path.expanduser("~/nuclei-templates"), out_file="nuclei_takeover.txt")
+    # nuclei_takeover(live_file, templates_dir=os.path.expanduser("~/nuclei-templates"), out_file="nuclei_takeover.txt")
 
     # 5) Build param URLs
     params_file = build_param_urls_from_wayback(wayback_file, params_file="params.txt")
     # Run ParamSpider (GitHub version)
-    paramspider_file = run_paramspider(live_file, out_file="paramspider_raw.txt")
+    # paramspider_file = run_paramspider(live_file, out_file="paramspider_raw.txt")
 
     # If output exists, merge results into params.txt
-    if paramspider_file and os.path.exists(paramspider_file):
-        with open(params_file, "a") as out:
-            with open(paramspider_file, "r") as ps:
-                for line in ps:
-                    url = line.strip()
-                    if "=" in url and url.startswith("http"):
-                        out.write(url + "\n")
+    # if paramspider_file and os.path.exists(paramspider_file):
+    #     with open(params_file, "a") as out:
+    #         with open(paramspider_file, "r") as ps:
+    #             for line in ps:
+    #                 url = line.strip()
+    #                 if "=" in url and url.startswith("http"):
+    #                     out.write(url + "\n")
 
     # Deduplicate + clean
     clean_params_file(params_file)
