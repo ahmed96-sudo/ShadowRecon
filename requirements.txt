@@ -1,5 +1,5 @@
 argparse
 requests
-'requests[socks]'
+requests[socks]
 stem
 shutil
