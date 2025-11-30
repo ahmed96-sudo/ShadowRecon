@@ -2,4 +2,3 @@ argparse
 requests
 requests[socks]
 stem
-shutil
