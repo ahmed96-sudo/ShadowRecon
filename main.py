@@ -522,11 +522,8 @@ def build_param_urls_from_wayback(wayback_file, params_file="params.txt"):
 
 
 def run_paramspider(liveurls, out_file="paramspider_raw.txt"):
-    """
-    Run ParamSpider via proxychains/Tor to find parameterized URLs.
-    """
 
-    cmd = f"proxychains paramspider --list {liveurls}"
+    cmd = f"paramspider --list {liveurls}"
 
     print(f"\n$ {cmd}")
 
@@ -579,7 +576,7 @@ def run_paramspider(liveurls, out_file="paramspider_raw.txt"):
 # =======================
 
 def xss_with_dalfox(params_file, out_file="xss_dalfox.txt"):
-    cmd = f"cat {params_file} | proxychains dalfox pipe --only-poc --worker 1 -o {out_file}"
+    cmd = f"proxychains dalfox file {params_file} --only-poc --worker 1 -o {out_file}"
     print(f"\n$ {cmd}")
     try:
         p = subprocess.run(
@@ -692,7 +689,7 @@ def main():
     #rotate_ip()
 
     # 0) WAF detection + bypass attempts (Tor + proxychains)
-    stage_waf(args.url)
+    # stage_waf(args.url)
 
     # 1) Subdomains → live
     subs_file = enum_subdomains(domain, out_file="subdomains.txt")
@@ -726,7 +723,7 @@ def main():
     xss_with_dalfox(params_file, out_file="xss_dalfox.txt")
 
     # 7) SQLi
-    sqli_with_sqlmap(params_file, out_dir="sqlmap_out")
+    # sqli_with_sqlmap(params_file, out_dir="sqlmap_out")
 
     # 8) LFI / SSRF fuzz (optional)
     if args.lfi_payloads:
