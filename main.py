@@ -652,7 +652,7 @@ def lfi_ssrf_with_ffuf(params_file, payloads_file, out_dir="ffuf_lfi_ssrf"):
 def check_tools():
     tools = {
         "proxychains": "sudo apt install proxychains (after installing, edit /etc/proxychains.conf to use socks5 127.0.0.1 9050)",
-        "paramSpider": "sudo apt install paramspider (after installing, edit /usr/lib/python3/dist-packages/paramspider/main.py to add 'import re' at the top and to add this line 'domainname = re.sub(r'[^a-zA-Z0-9]', '_', domain)' and then edit the result file path accordingly to be 'result_file = f'{domainname}.txt' to avoid issues with special characters in domain names')",
+        "paramspider": "sudo apt install paramspider (after installing, edit /usr/lib/python3/dist-packages/paramspider/main.py to add 'import re' at the top and to add this line 'domainname = re.sub(r'[^a-zA-Z0-9]', '_', domain)' and then edit the result file path accordingly to be 'result_file = f'{domainname}.txt' to avoid issues with special characters in domain names')",
         "tor": "sudo apt install tor (after installing tor, edit /etc/tor/torrc to enable ControlPort and set HashedControlPassword using 'tor --hash-password <password>')",
         "subfinder": "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
         #"assetfinder": "go get -u github.com/tomnomnom/assetfinder",
