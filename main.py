@@ -106,12 +106,13 @@ def detect_waf(url):
     Detect WAF using wafw00f via proxychains/Tor
     """
     output = run_pc(f"wafw00f {url}", timeout=300)
+    #print("\nنص الرد من WAFW00F:")
     print(output)
 
     match = re.search(r"is behind\s+(.+?)(?:\s+\(|$)", output, re.IGNORECASE)
     if match:
         waf_name = match.group(1).strip()
-        print(f"FireWall is: {waf_name}\n")
+        print(f"\FireWall is: {waf_name}\n")
         return waf_name
     elif "No WAF detected" in output:
         print("Couldn't detect a firewall.\n")
@@ -536,12 +537,60 @@ def build_param_urls_from_wayback(wayback_file, params_file="params.txt"):
     return params_file
 
 
+def run_paramspider(liveurls, out_file="paramspider_raw.txt"):
+    """
+    Run ParamSpider via proxychains/Tor to find parameterized URLs.
+    """
+
+    cmd = f"proxychains paramspider --list {liveurls}"
+
+    print(f"\n$ {cmd}")
+
+    try:
+        p = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=900
+        )
+
+        if p.returncode != 0:
+            print(f"[!] ParamSpider failed (exit code {p.returncode})")
+            if p.stderr.strip():
+                print(f"[ParamSpider STDERR]\n{p.stderr.strip()}")
+        else:
+            print(f"[+] ParamSpider finished → {out_file}")
+            if p.stdout.strip():
+                print(f"[ParamSpider STDOUT]\n{p.stdout.strip()}")
+
+    except subprocess.TimeoutExpired:
+        print("[!] ParamSpider timed out after 900 seconds")
+    except Exception as e:
+        print(f"[!] ParamSpider error: {e}")
+
+    return out_file
+
+
+
 # =======================
 #   STAGE 4: XSS / SQLi / LFI / SSRF
 # =======================
 
+def clean_params_file(params_file):
+    cleaned = []
+    with open(params_file, "r") as f:
+        for line in f:
+            url = line.strip()
+            if url and url.startswith("http"):
+                cleaned.append(url)
+    cleaned = list(dict.fromkeys(cleaned))  # Remove duplicates
+    with open(params_file, "w") as f:
+        f.write("\n".join(cleaned))
+
+
 def xss_with_dalfox(params_file, out_file="xss_dalfox.txt"):
-    cmd = f"cat {params_file} | proxychains dalfox pipe --only-poc -o {out_file}"
+    cmd = f"cat {clean_params_file(params_file)} | proxychains dalfox pipe --only-poc --worker 1 -o {out_file}"
     print(f"\n$ {cmd}")
     try:
         p = subprocess.run(
@@ -566,34 +615,6 @@ def xss_with_dalfox(params_file, out_file="xss_dalfox.txt"):
         print("[!] Dalfox timed out after 600 seconds")
     except Exception as e:
         print(f"[!] Dalfox execution error: {e}")
-
-
-def xss_with_kxss(params_file, out_file="xss_kxss.txt"):
-    cmd = f"cat {params_file} | proxychains kxss > {out_file}"
-    print(f"\n$ {cmd}")
-    try:
-        p = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=600
-        )
-
-        # Detect errors
-        if p.returncode != 0:
-            print(f"[!] KXSS failed (exit code {p.returncode})")
-            if p.stderr.strip():
-                print(f"[KXSS STDERR] {p.stderr.strip()}")
-        else:
-            print(f"[+] KXSS done → {out_file}")
-            if p.stdout.strip():
-                print(f"[KXSS STDOUT] {p.stdout.strip()}")
-
-    except subprocess.TimeoutExpired:
-        print("[!] KXSS timed out after 600 seconds")
-    except Exception as e:
-        print(f"[!] KXSS execution error: {e}")
 
 
 def sqli_with_sqlmap(params_file, out_dir="sqlmap_out"):
@@ -632,6 +653,7 @@ def lfi_ssrf_with_ffuf(params_file, payloads_file, out_dir="ffuf_lfi_ssrf"):
 def check_tools():
     tools = {
         "proxychains": "sudo apt install proxychains (after installing, edit /etc/proxychains.conf to use socks5 127.0.0.1 9050)",
+        "paramSpider": "sudo apt install paramspider (after installing, edit /usr/lib/python3/dist-packages/paramspider/main.py to add 'import re' at the top and to add this line 'domainname = re.sub(r'[^a-zA-Z0-9]', '_', domain)' and then edit the result file path accordingly to be 'result_file = f'{domainname}.txt' to avoid issues with special characters in domain names')",
         "tor": "sudo apt install tor (after installing tor, edit /etc/tor/torrc to enable ControlPort and set HashedControlPassword using 'tor --hash-password <password>')",
         "subfinder": "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
         #"assetfinder": "go get -u github.com/tomnomnom/assetfinder",
@@ -701,10 +723,24 @@ def main():
 
     # 5) Build param URLs
     params_file = build_param_urls_from_wayback(wayback_file, params_file="params.txt")
+    # Run ParamSpider (GitHub version)
+    paramspider_file = run_paramspider(live_file, out_file="paramspider_raw.txt")
+
+    # If output exists, merge results into params.txt
+    if paramspider_file and os.path.exists(paramspider_file):
+        with open("params.txt", "a") as out:
+            with open(paramspider_file, "r") as ps:
+                for line in ps:
+                    url = line.strip()
+                    if "=" in url and url.startswith("http"):
+                        out.write(url + "\n")
+
+    # Deduplicate + clean
+    clean_params_file("params.txt")
+
 
     # 6) XSS
-    xss_with_dalfox(params_file, out_file="xss_dalfox.txt")
-    #xss_with_kxss(params_file, out_file="xss_kxss.txt")
+    xss_with_dalfox("params.txt", out_file="xss_dalfox.txt")
 
     # 7) SQLi
     sqli_with_sqlmap(params_file, out_dir="sqlmap_out")
