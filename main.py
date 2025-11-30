@@ -578,20 +578,8 @@ def run_paramspider(liveurls, out_file="paramspider_raw.txt"):
 #   STAGE 4: XSS / SQLi / LFI / SSRF
 # =======================
 
-def clean_params_file(params_file):
-    cleaned = []
-    with open(params_file, "r") as f:
-        for line in f:
-            url = line.strip()
-            if url and url.startswith("http"):
-                cleaned.append(url)
-    cleaned = list(dict.fromkeys(cleaned))  # Remove duplicates
-    with open(params_file, "w") as f:
-        f.write("\n".join(cleaned))
-
-
 def xss_with_dalfox(params_file, out_file="xss_dalfox.txt"):
-    cmd = f"cat {clean_params_file(params_file)} | proxychains dalfox pipe --only-poc --worker 1 -o {out_file}"
+    cmd = f"cat {params_file} | proxychains dalfox pipe --only-poc --worker 1 -o {out_file}"
     print(f"\n$ {cmd}")
     try:
         p = subprocess.run(
@@ -722,19 +710,16 @@ def main():
     # 5) Build param URLs
     params_file = build_param_urls_from_wayback(wayback_file, params_file="params.txt")
     # Run ParamSpider (GitHub version)
-    # paramspider_file = run_paramspider(live_file, out_file="paramspider_raw.txt")
+    paramspider_file = run_paramspider(live_file, out_file="paramspider_raw.txt")
 
     # If output exists, merge results into params.txt
-    # if paramspider_file and os.path.exists(paramspider_file):
-    #     with open(params_file, "a") as out:
-    #         with open(paramspider_file, "r") as ps:
-    #             for line in ps:
-    #                 url = line.strip()
-    #                 if "=" in url and url.startswith("http"):
-    #                     out.write(url + "\n")
-
-    # Deduplicate + clean
-    clean_params_file(params_file)
+    if paramspider_file and os.path.exists(paramspider_file):
+        with open(params_file, "a") as out:
+            with open(paramspider_file, "r") as ps:
+                for line in ps:
+                    url = line.strip()
+                    if "=" in url and url.startswith("http"):
+                        out.write(url + "\n")
 
 
     # 6) XSS
