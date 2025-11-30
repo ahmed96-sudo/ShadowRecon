@@ -446,8 +446,6 @@ def enum_subdomains(domain, out_file="subdomains.txt"):
     if not out.strip():
         tmp_subs.add(f"https://{domain}")
     tmp_subs.update(x.strip() for x in out.splitlines() if x.strip())
-    #out = run_pc(f"assetfinder --subs-only {domain}", timeout=600)
-    #tmp_subs.update(x.strip() for x in out.splitlines() if x.strip())
     subs = sorted(tmp_subs)
     with open(out_file, "w") as f:
         for s in subs:
@@ -689,7 +687,7 @@ def main():
     #rotate_ip()
 
     # 0) WAF detection + bypass attempts (Tor + proxychains)
-    # stage_waf(args.url)
+    stage_waf(args.url)
 
     # 1) Subdomains → live
     subs_file = enum_subdomains(domain, out_file="subdomains.txt")
@@ -699,10 +697,10 @@ def main():
     wayback_file = wayback_urls(domain, out_file="wayback.txt")
 
     # 3) Fuzz dirs on live
-    # fuzz_dirs_ffuf(live_file, args.wordlist, out_dir="ffuf_dirs")
+    fuzz_dirs_ffuf(live_file, args.wordlist, out_dir="ffuf_dirs")
 
     # 4) Nuclei takeover
-    # nuclei_takeover(live_file, templates_dir=os.path.expanduser("~/nuclei-templates"), out_file="nuclei_takeover.txt")
+    nuclei_takeover(live_file, templates_dir=os.path.expanduser("~/nuclei-templates"), out_file="nuclei_takeover.txt")
 
     # 5) Build param URLs
     params_file = build_param_urls_from_wayback(wayback_file, params_file="params.txt")
@@ -723,7 +721,7 @@ def main():
     xss_with_dalfox(params_file, out_file="xss_dalfox.txt")
 
     # 7) SQLi
-    # sqli_with_sqlmap(params_file, out_dir="sqlmap_out")
+    sqli_with_sqlmap(params_file, out_dir="sqlmap_out")
 
     # 8) LFI / SSRF fuzz (optional)
     if args.lfi_payloads:
