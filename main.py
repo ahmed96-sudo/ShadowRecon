@@ -106,13 +106,12 @@ def detect_waf(url):
     Detect WAF using wafw00f via proxychains/Tor
     """
     output = run_pc(f"wafw00f {url}", timeout=300)
-    #print("\nنص الرد من WAFW00F:")
     print(output)
 
     match = re.search(r"is behind\s+(.+?)(?:\s+\(|$)", output, re.IGNORECASE)
     if match:
         waf_name = match.group(1).strip()
-        print(f"\FireWall is: {waf_name}\n")
+        print(f"FireWall is: {waf_name}\n")
         return waf_name
     elif "No WAF detected" in output:
         print("Couldn't detect a firewall.\n")
