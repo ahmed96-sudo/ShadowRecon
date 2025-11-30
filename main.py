@@ -497,21 +497,6 @@ def fuzz_dirs_ffuf(live_file, wordlist, out_dir="ffuf_dirs"):
     print(f"[+] FFUF dir fuzzing done → {out_dir}")
 
 
-def fuzz_dirs_dirsearch(live_file, wordlist, out_dir="dirsearch_out"):
-    os.makedirs(out_dir, exist_ok=True)
-    with open(live_file) as f:
-        for host in f:
-            host = host.strip()
-            if not host:
-                continue
-            cmd = (
-                f"dirsearch -u {host} -w {wordlist} -E -t 50 "
-                f"-o {os.path.join(out_dir, 'dirsearch.txt')}"
-            )
-            run_pc(cmd, timeout=900)
-    print(f"[+] Dirsearch done → {out_dir}")
-
-
 # =======================
 #   STAGE 3: TAKEOVER / PARAMS
 # =======================
@@ -520,7 +505,7 @@ def nuclei_takeover(live_file, templates_dir=os.path.expanduser("~/nuclei-templa
     cmd = (
         f"nuclei -l {live_file} "
         f"-t {templates_dir}/takeovers/ -o {out_file} "
-        f"-rl 50"
+        f"-timeout 50"
     )
     run_pc(cmd, timeout=3600)
     print(f"[+] Nuclei takeover scan done → {out_file}")
@@ -559,7 +544,24 @@ def run_paramspider(liveurls, out_file="paramspider_raw.txt"):
             if p.stderr.strip():
                 print(f"[ParamSpider STDERR]\n{p.stderr.strip()}")
         else:
-            print(f"[+] ParamSpider finished → {out_file}")
+            print(f"[+] ParamSpider finished")
+            for fil in liveurls:
+                if fil.startswith("https://"):
+                    firstfilename = re.sub(r'^https?://', '', fil)
+                elif fil.startswith("http://"):
+                    firstfilename = re.sub(r'^http?://', '', fil)
+                else:
+                    firstfilename = fil
+
+                # Replace problematic characters
+                finalfilename = re.sub(r'[/:.]', '_', firstfilename)
+                param_file = f"{finalfilename}.txt"
+                if os.path.exists(param_file):
+                    with open(param_file, "r") as f_in, open(out_file, "a") as f_out:
+                        for line in f_in:
+                            line = line.strip()
+                            if line:
+                                f_out.write(line + "\n")
             if p.stdout.strip():
                 print(f"[ParamSpider STDOUT]\n{p.stdout.strip()}")
 
@@ -655,10 +657,8 @@ def check_tools():
         "paramspider": "sudo apt install paramspider (after installing, edit /usr/lib/python3/dist-packages/paramspider/main.py to add 'import re' at the top and to add this line 'domainname = re.sub(r'[^a-zA-Z0-9]', '_', domain)' and then edit the result file path accordingly to be 'result_file = f'{domainname}.txt' to avoid issues with special characters in domain names')",
         "tor": "sudo apt install tor (after installing tor, edit /etc/tor/torrc to enable ControlPort and set HashedControlPassword using 'tor --hash-password <password>')",
         "subfinder": "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
-        #"assetfinder": "go get -u github.com/tomnomnom/assetfinder",
         "httpx": "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest",
         "ffuf": "sudo apt install ffuf",
-        "dirsearch": "git clone https://github.com/maurosoria/dirsearch.git --depth 1",
         "waybackpy": "sudo apt install waybackpy",
         "nuclei": "go install -v github.com/projectdiscovery/nuclei/cmd/nuclei@latest",
         "dalfox": "go install github.com/hahwul/dalfox/v2@latest",
@@ -715,7 +715,6 @@ def main():
 
     # 3) Fuzz dirs on live
     fuzz_dirs_ffuf(live_file, args.wordlist, out_dir="ffuf_dirs")
-    fuzz_dirs_dirsearch(live_file, args.wordlist, out_dir="dirsearch_out")
 
     # 4) Nuclei takeover
     nuclei_takeover(live_file, templates_dir=os.path.expanduser("~/nuclei-templates"), out_file="nuclei_takeover.txt")
@@ -727,7 +726,7 @@ def main():
 
     # If output exists, merge results into params.txt
     if paramspider_file and os.path.exists(paramspider_file):
-        with open("params.txt", "a") as out:
+        with open(params_file, "a") as out:
             with open(paramspider_file, "r") as ps:
                 for line in ps:
                     url = line.strip()
@@ -735,11 +734,11 @@ def main():
                         out.write(url + "\n")
 
     # Deduplicate + clean
-    clean_params_file("params.txt")
+    clean_params_file(params_file)
 
 
     # 6) XSS
-    xss_with_dalfox("params.txt", out_file="xss_dalfox.txt")
+    xss_with_dalfox(params_file, out_file="xss_dalfox.txt")
 
     # 7) SQLi
     sqli_with_sqlmap(params_file, out_dir="sqlmap_out")
