@@ -45,7 +45,7 @@ def rotate_ip():
         return False
 
 
-def tor_request(method, url, max_retries=3, **kwargs):
+def tor_request(method, url, max_retries=5, **kwargs):
     """
     HTTP request through Tor; if blocked (403/429) or connection errors,
     rotate IP and retry up to max_retries.
